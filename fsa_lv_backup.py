@@ -35,25 +35,21 @@ def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
     """ backup one LV, to {backup_path}/{lv}.fsa
     """
     lv_path = os.path.join('/dev', cfg.vol_group, lv.name)
-    lv_snap = os.path.join('/dev', cfg.vol_group, snaplv)
 
     vg = lvm.get_vg(cfg.vol_group, "w")
     size = lv.size(units='MiB')
 
-    # lvcreate -l 10%VG -s -n 20140412_lvol1 /dev/vg0/lvol1
-    # The above example creates a snapshot logical volume called
-    # 20140412_lvol1, based on the logical volume lvol1 in volume group
-    # vg0. It uses 10% of the space (extents actually) allocated to the
-    # volume group.
-
     # lv_snap = vg.create_lv(snaplv, size, "MiB")
-    snapname = "{}_{}".format(lv.name, snaplv)
-    echo(lv_path, s=True, n=snapname, L=size, _out=sys.stderr)  # lvcreate
+    lv_snap_name = "{}_{}".format(lv.name, snaplv)
+    lvcreate(lv_path, s=True, n=lv_snap_name, L=size, _out=sys.stderr)
 
     lv_backup = os.path.join(cfg.backup_path, lv.name + '.fsa')
-    echo(lv_backup, lv_snap, o='savefs', _out=sys.stderr) # fsarchiver
+    lv_snap = os.path.join('/dev', cfg.vol_group, lv_snap_name)
 
-    echo(f=lv_snap, _out=sys.stderr) # lvremove
+    fsarchiver("-d", "-o", "savefs", lv_backup, lv_snap, _out=sys.stderr)
+
+    # clean up....
+    lvremove(f=lv_snap, _out=sys.stderr)
 
 
 def all_lvs(cfg):
@@ -85,12 +81,13 @@ def main():
             raise
 
     metadata_backup(cfg)
-
     log_vols, lvm = all_lvs(cfg)
+
     for i, lv in enumerate(log_vols):
-        if cfg.debug and i > 2:
-            break
-        backup_one_lv(cfg, lvm, lv)
+        if cfg.debug and lv.name != 'vagrantlv':
+            continue
+        else:
+            backup_one_lv(cfg, lvm, lv)
 
 if __name__ == '__main__':
     main()

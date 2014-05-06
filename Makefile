@@ -9,14 +9,16 @@
 #  then all recipe lines for each target will be provided to a single
 #  invocation of the shell..."
 
-.ONESHELL:
 .PHONY: prelim install run clean
 
 PATH_PFX = bin
 
+all:
+	echo "please edit 'config.py', first!"
+
 prelim:
-	sudo aptitude install fsarchiver liblvm2app2.2 python-virtualenv
-	virtualenv .
+	aptitude install remake fsarchiver liblvm2app2.2 python-virtualenv
+	virtualenv --system-site-packages .  # 'lvm2py' reqs liblvm2app2
 
 # sh Bunch lvm2py
 install:
@@ -27,3 +29,12 @@ run:
 
 clean:
 	/bin/true  ## no-opp
+
+# ONESHELL only works for the GNU Make "fork", 'remake' 
+# ... must "quote" shell '$' with another '$', for Make
+.ONESHELL:
+foo:
+	echo $$$$
+	a=999
+	echo $$$$
+	echo $$a
