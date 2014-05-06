@@ -12,7 +12,7 @@ from sh import echo
 # import logging
 
 def metadata_backup(cfg):
-    """ backup the meta-data for this system
+    """ Backup the LVM, disk metadata, for this system
     """
     # log the actions
     # stderr of commands to "log"
@@ -36,8 +36,6 @@ def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
     """
     lv_path = os.path.join('/dev', cfg.vol_group, lv.name)
     lv_snap = os.path.join('/dev', cfg.vol_group, snaplv)
-
-    # print(lv_path, '\n', lv_snap)
 
     vg = lvm.get_vg(cfg.vol_group, "w")
     size = lv.size(units='MiB')
@@ -72,12 +70,19 @@ def all_lvs(cfg):
 
 def main():
     from config import cfg
+    import errno
     from pprint import pprint
 
     pprint(cfg)
 
     cfg.backup_path = os.path.join(cfg.backup_vol, cfg.backup_dir)
-    os.mkdir(cfg.backup_path)
+    try:
+        os.mkdir(cfg.backup_path)
+    except OSError as e:
+        if e.errno == errno.EEXIST:
+            print(e)
+        else:
+            raise
 
     metadata_backup(cfg)
 

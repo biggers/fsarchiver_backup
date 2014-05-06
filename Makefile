@@ -18,8 +18,9 @@ prelim:
 	sudo aptitude install fsarchiver liblvm2app2.2 python-virtualenv
 	virtualenv .
 
+# sh Bunch lvm2py
 install:
-	${PATH_PFX}/pip install sh Bunch lvm2py
+	${PATH_PFX}/pip install -r requirements.txt
 
 run:
 	${PATH_PFX}/python fsa_lv_backup.py
