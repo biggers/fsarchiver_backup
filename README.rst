@@ -22,9 +22,6 @@ Go get this project, from Github, and set it up ::
 
 Set-up this project's Python environment, for ``pip`` and required packages.:.  Refer to the ``Makefile`` in this project, for details.::
 
- sudo make install
-
- . bin/activate
  make install
 
 Configure
@@ -41,11 +38,11 @@ NOTE: the *volume group* that you want to use, and what LVs you might want to ba
 
  df -h     # NOTE: what is the /boot or /root filesystem?
 
-Now, edit ``config_edit.py`` for your backup Storage and other paths, then copy to ``config.py``.::
+Now, edit ``config_edit.py`` for your backup Storage and other paths, then copy or symlink, to ``config.py``.::
 
  vi config_edit.py
 
- cp -a config_edit.py config.py
+ ln -s config_edit.py config.py
 
 Run the backup
 ==============
@@ -57,8 +54,8 @@ You'll get some "feedback" from the LVM commands, at least.  I am working on get
 
 References
 ==========
-
-*Info on doing a bare metal restore using fsarchiver.*  FSarchiver forum entry.  My code is based on this how-to...
+This is an ``fsarchiver`` forum entry.  My code is based on this how-to...
+*Info on doing a bare metal restore using fsarchiver.*
 
  http://www.fsarchiver.org/forums/viewtopic.php?f=16&t=1218
 
