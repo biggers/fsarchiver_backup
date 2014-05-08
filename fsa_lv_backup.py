@@ -67,9 +67,10 @@ def backup_one_partition(cfg, partition):
     """ Back-up one Linux partition, to {backup_path}/{partition}_part.fsa
     """
     device = cfg.lnx_partitions[partition]
-    dev_backup = os.path.join(cfg.backup_path, "{}_part.fsa".format(fs_name))
+    na, na, part_name = device.split('/')
 
-    fsarchiver("-vv", "-o", "savefs", dev_backup, device, _out=sys.stderr)
+    dev_backup = os.path.join(cfg.backup_path, "{}_part.fsa".format(part_name))
+    fsarchiver("-vv", "-A", "-o", "savefs", dev_backup, device, _out=sys.stderr)
 
 def main():
     from config import cfg
