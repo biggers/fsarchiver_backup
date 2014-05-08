@@ -12,7 +12,7 @@ cfg = Bunch(
     # NOT working, yet! Leave empty!
     lvs_to_backup=(),
 
-    lnx_partitions={'/boot':'/dev/sda1'}
+    lnx_partitions={'/boot':'/dev/sda1'},
     vol_group='saucyvg',
 
     backup_dir="{}_{}".format( socket.gethostname(), _date ),

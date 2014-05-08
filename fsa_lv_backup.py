@@ -5,26 +5,28 @@ import sys
 import shutil
 
 from sh import sudo, mount
-from sh import sfdisk, fsarchiver
-from sh import lvcreate, lvremove, vgcfgbackup, pvdisplay
 from lvm2py import LVM
+from sh import sfdisk, fsarchiver
+from sh import pvs, lvcreate, lvremove, vgcfgbackup, pvdisplay
 
 def metadata_backup(cfg):
     """ Back-up the LVM and other disk metadata, for this system
     """
     na, dev, device = cfg.sysdisk.split('/')
 
-    sfd_file = os.path.join(cfg.backup_path, device + '.sfd')
-    sfdisk(d=cfg.sysdisk, _out=sfd_file)
+    sfd_path = os.path.join(cfg.backup_path, device + '.sfd')
+    sfdisk(d=cfg.sysdisk, _out=sfd_path)
 
-    sfd_file_long = os.path.join(cfg.backup_path, device + '.sfd_long')
-    sfdisk(l=cfg.sysdisk, _out=sfd_file_long)
+    sfd_path_long = os.path.join(cfg.backup_path, device + '.sfd_long')
+    sfdisk(l=cfg.sysdisk, _out=sfd_path_long)
 
     vgcfg = os.path.join(cfg.backup_path, 'lvm.conf')
     vgcfgbackup( f=vgcfg )
 
     shutil.copy('/etc/fstab', cfg.backup_path)   # backup 'fstab'
 
+    pvs_out = os.path.join(cfg.backup_path, 'pvs_all.text')
+    pvs( o='pv_all', _out=pvs_out)
 
 def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
     """ Snapshot & back-up one Logical Volume, to {backup_path}/{lv}.fsa
@@ -50,10 +52,11 @@ def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
 def all_lvs(cfg):
     """ Return a list of Logical Volumes to back-up, and 'lvm' object
     """
-    lvm = LVM()
+    lvm = cfg.lvm
     vg = lvm.get_vg(cfg.vol_group)
 
     if cfg.lvs_to_backup:
+        ## FIX ME!  Need LVM objects, not just a simple Py-tuple
         lvs = cfg.lvs_to_backup
     else:
         lvs = vg.lvscan()
@@ -87,7 +90,9 @@ def main():
         else:
             raise
 
+    cfg.lvm = LVM()
     metadata_backup(cfg)
+
     log_vols, lvm = all_lvs(cfg)
 
     for part in cfg.lnx_partitions.keys():
