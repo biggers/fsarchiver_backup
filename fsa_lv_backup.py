@@ -7,16 +7,11 @@ import shutil
 from sh import sudo, mount
 from sh import sfdisk, fsarchiver
 from sh import lvcreate, lvremove, vgcfgbackup, pvdisplay
-from sh import echo
-
-# import logging
+from lvm2py import LVM
 
 def metadata_backup(cfg):
-    """ Backup the LVM, disk metadata, for this system
+    """ Back-up the LVM and other disk metadata, for this system
     """
-    # log the actions
-    # stderr of commands to "log"
-
     na, dev, device = cfg.sysdisk.split('/')
 
     sfd_file = os.path.join(cfg.backup_path, device + '.sfd')
@@ -32,7 +27,7 @@ def metadata_backup(cfg):
 
 
 def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
-    """ backup one LV, to {backup_path}/{lv}.fsa
+    """ Snapshot & back-up one Logical Volume, to {backup_path}/{lv}.fsa
     """
     lv_path = os.path.join('/dev', cfg.vol_group, lv.name)
 
@@ -53,21 +48,33 @@ def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
 
 
 def all_lvs(cfg):
+    """ Return a list of Logical Volumes to back-up, and 'lvm' object
     """
-    """
-    from lvm2py import LVM
-
     lvm = LVM()
     vg = lvm.get_vg(cfg.vol_group)
-    lvs = vg.lvscan()
+
+    if cfg.lvs_to_backup:
+        lvs = cfg.lvs_to_backup
+    else:
+        lvs = vg.lvscan()
 
     return lvs, lvm
 
+def backup_one_partition(cfg, partition):
+    """ Back-up one Linux partition, to {backup_path}/{partition}_part.fsa
+    """
+    device = cfg.lnx_partitions[partition]
+    dev_backup = os.path.join(cfg.backup_path, "{}_part.fsa".format(fs_name))
+
+    fsarchiver("-vv", "-o", "savefs", dev_backup, device, _out=sys.stderr)
 
 def main():
     from config import cfg
     import errno
     from pprint import pprint
+
+    # "pickle" or write as Py code, the _cfg including:
+    #   _cfg.mounts={'/var', '/dev/myvg/var'}'
 
     pprint(cfg)
 
@@ -83,11 +90,11 @@ def main():
     metadata_backup(cfg)
     log_vols, lvm = all_lvs(cfg)
 
+    for part in cfg.lnx_partitions.keys():
+        backup_one_partition(cfg, part)
+
     for i, lv in enumerate(log_vols):
-        if cfg.debug and lv.name != 'vagrantlv':
-            continue
-        else:
-            backup_one_lv(cfg, lvm, lv)
+        backup_one_lv(cfg, lvm, lv)
 
 if __name__ == '__main__':
     main()

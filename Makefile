@@ -5,33 +5,40 @@
 # REFs:  http://docs.python-guide.org/en/latest/dev/virtualenvs/
 #        
 
-# "If the .ONESHELL special target appears anywhere in the makefile,
-#  then all recipe lines for each target will be provided to a single
-#  invocation of the shell..."
-
 .PHONY: prelim install run clean
 
 PATH_PFX = bin
 
 all:
-	echo "please edit 'config.py', first!"
+	echo "Please edit 'config_edit_me.py', copy to 'config.py'!"
+
+install: prelim virtenv pip
+
+# you have your own Python, so....
+install_loc: virtenv pip
 
 prelim:
-	aptitude install remake fsarchiver liblvm2app2.2 python-virtualenv
-	virtualenv --system-site-packages .  # 'lvm2py' reqs liblvm2app2
+	sudo aptitude install remake fsarchiver liblvm2app2.2 python-virtualenv
 
 # sh Bunch lvm2py
-install:
-	${PATH_PFX}/pip install -r requirements.txt
+virtenv:	
+	virtualenv --system-site-packages .  # 'lvm2py' reqs liblvm2app2
+
+pip:
+	. bin/activate; ${PATH_PFX}/pip install -r requirements.txt
 
 run:
-	${PATH_PFX}/python fsa_lv_backup.py
+	. bin/activate; ${PATH_PFX}/python fsa_lv_backup.py
 
 clean:
-	/bin/true  ## no-opp
+	/bin/true  ## no-opp - now
 
-# ONESHELL only works for the GNU Make "fork", 'remake' 
-# ... must "quote" shell '$' with another '$', for Make
+# "If the .ONESHELL special target appears anywhere in the makefile,
+#  then all recipe lines for each target will be provided to a single
+#  invocation of the shell..."
+
+# ONESHELL (on Ubuntu) works only for the "fork" of GNU Make, 'remake'!  :-P
+# ... Must "quote" shell '$' with another '$', for Make
 .ONESHELL:
 foo:
 	echo $$$$
