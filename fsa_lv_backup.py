@@ -3,6 +3,7 @@ from __future__ import print_function
 import os
 import sys
 import shutil
+from pprint import pprint
 
 from sh import sudo, mount, df
 from lvm2py import LVM
@@ -36,25 +37,19 @@ def metadata_backup(cfg):
     df( h=True, _out=df_out)
 
 
-def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
+def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
     """ Snapshot & back-up one Logical Volume, to {backup_path}/{lv}.fsa
     """
-    if cfg.lvs_to_backup:
-        if lv.name not in cfg.lvs_to_backup:
-            print( "LV {} not in {}".format(lv.name, cfg.lvs_to_backup) )
-            return
+    lv_path = os.path.join('/dev', vg.name, lv.name)
 
-    lv_path = os.path.join('/dev', cfg.vol_group, lv.name)
-
-    vg = lvm.get_vg(cfg.vol_group, "w")
     size = lv.size(units='MiB')
-
     # lv_snap = vg.create_lv(snaplv, size, "MiB")
+
     lv_snap_name = "{}_{}".format(lv.name, snaplv)
     lvcreate(lv_path, s=True, n=lv_snap_name, L=size, _out=sys.stderr)
 
     lv_backup = os.path.join(cfg.backup_path, lv.name + '.fsa')
-    lv_snap = os.path.join('/dev', cfg.vol_group, lv_snap_name)
+    lv_snap = os.path.join('/dev', vg.name, lv_snap_name)
 
     fsarchiver("-d", "-o", "savefs", lv_backup, lv_snap, _out=sys.stderr)
 
@@ -62,14 +57,31 @@ def backup_one_lv(cfg, lvm, lv, snaplv='snap_lv'):
     lvremove(f=lv_snap, _out=sys.stderr)
 
 
-def all_lvs(cfg):
-    """ Return a list of Logical Volumes to back-up, and 'lvm' object
+def get_all_lvs(cfg):
+    """ Return a Dict of VolGroup: LogicalVol pairs, to be backed-up
     """
-    lvm = cfg.lvm
-    vg = lvm.get_vg(cfg.vol_group)
+    vgs_to_backup = list()
+    vgs = cfg.lvm.vgscan()
 
-    lvs = vg.lvscan()
-    return lvs, lvm
+    if cfg.vgs_to_backup:
+        for idx in range(0, len(vgs)):
+            vg = vgs[idx]
+            if vg.name not in cfg.vgs_to_backup:
+                print( "VG {} not in {}".format(vg.name, cfg.vgs_to_backup) )
+                del vgs[idx]
+
+    for vg in vgs:
+        lvs = vg.lvscan()
+
+        for lv in lvs:
+            if cfg.lvs_to_backup and lv.name not in cfg.lvs_to_backup:
+                print( "VG{}: LV {} not in {}".format(vg.name, lv.name, cfg.lvs_to_backup) )
+                continue
+
+            vgs_to_backup.append((vg, lv))
+
+    return vgs_to_backup
+
 
 def backup_one_partition(cfg, partition):
     """ Back-up one Linux partition, to {backup_path}/{partition}_part.fsa
@@ -85,10 +97,10 @@ def backup_one_partition(cfg, partition):
     dev_backup = os.path.join(cfg.backup_path, "{}_part.fsa".format(part_name))
     fsarchiver("-vv", "-A", "-o", "savefs", dev_backup, device, _out=sys.stderr)
 
+
 def main():
     from config import cfg
     import errno
-    from pprint import pprint
 
     # "pickle" or write as Py code, the _cfg including:
     #   _cfg.mounts={'/var', '/dev/myvg/var'}'
@@ -108,13 +120,13 @@ def main():
     cfg.lvm = LVM()
     metadata_backup(cfg)
 
-    log_vols, lvm = all_lvs(cfg)
-
     for part in cfg.lnx_partitions.keys():
         backup_one_partition(cfg, part)
 
-    for i, lv in enumerate(log_vols):
-        backup_one_lv(cfg, lvm, lv)
+    vgs_lvs = get_all_lvs(cfg)
+
+    for vg, lv in vgs_lvs:
+        backup_one_lv(cfg, vg, lv)
 
 if __name__ == '__main__':
     main()
