@@ -24,7 +24,7 @@ def metadata_backup(cfg):
     sfd_path_long = os.path.join(cfg.backup_path, device + '.sfd_long')
     sfdisk(l=cfg.metadata, _out=sfd_path_long)
 
-    vgcfg = os.path.join(cfg.backup_path, 'lvm.conf')
+    vgcfg = os.path.join(cfg.backup_path, 'lvm_%s.conf')
     vgcfgbackup( f=vgcfg )
 
     shutil.copy('/etc/fstab', cfg.backup_path)   # backup 'fstab'
