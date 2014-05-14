@@ -9,6 +9,7 @@ from sh import sudo, mount, df
 from lvm2py import LVM
 from sh import sfdisk, fsarchiver
 from sh import pvs, lvcreate, lvremove, vgcfgbackup, pvdisplay
+import sh
 
 def metadata_backup(cfg):
     """ Back-up the LVM and other disk metadata, for this system
@@ -41,21 +42,32 @@ def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
     """ Snapshot & back-up one Logical Volume, to {backup_path}/{lv}.fsa
     """
     lv_path = os.path.join('/dev', vg.name, lv.name)
-
     size = lv.size(units='MiB')
     # lv_snap = vg.create_lv(snaplv, size, "MiB")
 
-    lv_snap_name = "{}_{}".format(lv.name, snaplv)
-    lvcreate(lv_path, s=True, n=lv_snap_name, L=size, _out=sys.stderr)
+    lv_to_backup = None         # /dev/somevg/lv_or_lv_snapshot
+    e = None
 
-    lv_backup = os.path.join(cfg.backup_path, lv.name + '.fsa')
-    lv_snap = os.path.join('/dev', vg.name, lv_snap_name)
+    try:                        # attempt to backup from a LV snapshot...
+        lv_snap_name = "{}_{}".format(lv.name, snaplv)
+        lvcreate(lv_path, s=True, n=lv_snap_name, L=size, _out=sys.stderr)
+        lv_to_backup = os.path.join('/dev', vg.name, lv_snap_name)
 
-    fsarchiver("-d", "-o", "savefs", lv_backup, lv_snap, _out=sys.stderr)
+    except sh.ErrorReturnCode_5 as e:
+        # Volume group "sysvg00" has insufficient free space (2661
+        # extents): 3505 required.
+        print("\nWARNING, backing up <{}> LIVE!  No LV snapshot possible...".\
+              format(lv_path))
+        print(e)
+        lv_to_backup = lv_path
+
+    fsa_lv_backup = os.path.join(cfg.backup_path, lv.name + '.fsa')
+    fsarchiver("-d", "-A", "-o", "savefs", fsa_lv_backup, lv_to_backup,
+               _out=sys.stderr)
 
     # clean up....
-    lvremove(f=lv_snap, _out=sys.stderr)
-
+    if e == None:
+        lvremove(f=lv_to_backup, _out=sys.stderr)
 
 def get_all_lvs(cfg):
     """ Return a Dict of VolGroup: LogicalVol pairs, to be backed-up
@@ -64,8 +76,7 @@ def get_all_lvs(cfg):
     vgs = cfg.lvm.vgscan()
 
     if cfg.vgs_to_backup:
-        for idx in range(0, len(vgs)):
-            vg = vgs[idx]
+        for idx, vg in enumerate(vgs):
             if vg.name not in cfg.vgs_to_backup:
                 print( "VG {} not in {}".format(vg.name, cfg.vgs_to_backup) )
                 del vgs[idx]

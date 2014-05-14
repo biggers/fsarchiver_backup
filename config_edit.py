@@ -16,11 +16,10 @@ cfg = Bunch(
     backup_dir="{}_{}".format( socket.gethostname(), _date ),
 
     today=_today,
-    debug=True,
+    debug=False,
 )
 
 if cfg.debug == True:
-    cfg.backup_vol = '/var/tmp/backups'
-    cfg.vgs_to_backup = ('saucyvg',)
-    cfg.lvs_to_backup = ('vagrantlv', 'b2dckr00')
+    cfg.vgs_to_backup = ('sysvg00',)
+    cfg.lvs_to_backup = ('root',)
     cfg.lnx_partitions = {'/boot':'testing.now'}
