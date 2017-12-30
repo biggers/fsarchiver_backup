@@ -1,16 +1,17 @@
-from bunch import Bunch
+from attrdict import AttrDict
 import socket
 from datetime import datetime
 
 _today = str(datetime.today())
 _date, _na = _today.split()
 
-cfg = Bunch(
-    backup_vol='/mnt/backups',
+
+cfg = AttrDict(
+    backup_vol='/mnt/fsarchiver_backups',
     metadata='/dev/sda',
 
     vgs_to_backup=(),
-    lvs_to_backup=(),  # this scheme won't work, if LVs not "name-unique" acrossall VolGroups!
+    lvs_to_backup=(),
 
     lnx_partitions={'/boot':'/dev/sda1'},
     backup_dir="{}_{}".format( socket.gethostname(), _date ),
@@ -19,7 +20,5 @@ cfg = Bunch(
     debug=False,
 )
 
-if cfg.debug == True:
-    cfg.vgs_to_backup = ('sysvg00',)
-    cfg.lvs_to_backup = ('root',)
-    cfg.lnx_partitions = {'/boot':'testing.now'}
+cfg.vgs_to_backup = ('sysvg00',)
+cfg.lvs_to_backup = ('root', 'var', 'local', 'home',)

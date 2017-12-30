@@ -38,11 +38,12 @@ NOTE: the *volume group* that you want to use, and what LVs you might want to ba
 
  df -h     # NOTE: what is the /boot or /root filesystem?
 
-Now, edit ``config_edit.py`` for your backup Storage and other paths, then copy or symlink, to ``config.py``.::
+Copy ``config_edit.py`` to ``config.py``, then edit for your backup
+Storage and other paths.
 
- vi config_edit.py
+ cp config_edit.py config.py
 
- ln -s config_edit.py config.py
+ emacs config.py
 
 Run the backup
 ==============
@@ -60,6 +61,6 @@ This is an ``fsarchiver`` forum entry.  My code is based on this how-to...
  http://www.fsarchiver.org/forums/viewtopic.php?f=16&t=1218
 
 
-*Backup and bare metal restore your Linux server with SystemRescueCd and fsarchiver*
+*Backup and bare metal restore your Linux server with SystemRescueCd and fsarchiver* -- no longer available...
 
  http://www.techroot.be/uncategorized/backup-and-bare-metal-restore-your-linux-server-with-systemrescuecd-and-fsarchiver.html
