@@ -17,7 +17,8 @@ def metadata_backup(cfg):
     try:
         na, dev, device = cfg.metadata.split('/')
     except ValueError as e:
-        print( "{}! cfg.metadata is {}".format(e, cfg.metadata) )
+        print("{}! cfg.metadata is {}".format(e, cfg.metadata),
+              file=sys.stderr)
         return
 
     sfd_path = os.path.join(cfg.backup_path, device + '.sfd')
@@ -57,8 +58,8 @@ def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
         # Volume group "sysvg00" has insufficient free space (2661
         # extents): 3505 required.
         print("\nWARNING, backing up <{}> LIVE!  No LV snapshot possible...".\
-              format(lv_path))
-        print(e)
+              format(lv_path), file=sys.stderr)
+        print(e, file=sys.stderr)
         lv_to_backup = lv_path
 
     fsa_lv_backup = os.path.join(cfg.backup_path, lv.name + '.fsa')
@@ -70,23 +71,28 @@ def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
         lvremove(f=lv_to_backup, _out=sys.stderr)
 
 def get_all_lvs(cfg):
-    """ Return a Dict of VolGroup: LogicalVol pairs, to be backed-up
+    """ Return a List of VolGroup: LogicalVol pairs, to be backed-up
     """
     vgs_to_backup = list()
     vgs = cfg.lvm.vgscan()
 
-    if cfg.vgs_to_backup:
-        for idx, vg in enumerate(vgs):
-            if vg.name not in cfg.vgs_to_backup:
-                print( "VG {} not in {}".format(vg.name, cfg.vgs_to_backup) )
-                del vgs[idx]
+    if not cfg.vgs_to_backup:
+        return None
+
+    for i, vg in reversed(list(enumerate(vgs))):
+        if vg.name not in cfg.vgs_to_backup:
+            print("VG {} not in {}".format(vg.name, cfg.vgs_to_backup),
+                  file=sys.stderr)
+            vgs.pop(i)
 
     for vg in vgs:
         lvs = vg.lvscan()
 
         for lv in lvs:
-            if cfg.lvs_to_backup and lv.name not in cfg.lvs_to_backup:
-                print( "VG{}: LV {} not in {}".format(vg.name, lv.name, cfg.lvs_to_backup) )
+            if lv.name not in cfg.lvs_to_backup:
+                print("VG{}: LV {} not in {}".
+                      format(vg.name, lv.name, cfg.lvs_to_backup),
+                      file=sys.stderr)
                 continue
 
             vgs_to_backup.append((vg, lv))
@@ -102,12 +108,16 @@ def backup_one_partition(cfg, partition):
     try:
         na, na, part_name = device.split('/')
     except ValueError as e:
-        print( "{}! device is {}".format(e, device) )
+        print("{}! device is {}".format(e, device), file=sys.stderr)
         return
 
     dev_backup = os.path.join(cfg.backup_path, "{}_part.fsa".format(part_name))
-    fsarchiver("-vv", "-A", "-o", "savefs", dev_backup, device, _out=sys.stderr)
 
+    try:
+        fsarchiver("-vv", "-A", "-o", "savefs",
+                   dev_backup, device, _out=sys.stderr)
+    except sh.ErrorReturnCode_1 as e:
+        print(e, file=sys.stderr)
 
 def main():
     from config import cfg
@@ -116,8 +126,8 @@ def main():
     # "pickle" or write as Py code, the _cfg including:
     #   _cfg.mounts={'/var', '/dev/myvg/var'}'
 
-    pprint(cfg)
-    pprint("Backup starting @ {}".format(cfg.today))
+    pprint(cfg, stream=sys.stderr)
+    pprint("Backup starting @ {}".format(cfg.today), stream=sys.stderr)
 
     cfg.backup_path = os.path.join(cfg.backup_vol, cfg.backup_dir)
     try:
