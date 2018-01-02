@@ -4,17 +4,18 @@ import os
 import sys
 from pprint import pprint
 import shutil
+import argparse
 
 import sh
 from sh import (
-    df
+    df,
     sfdisk,
     fsarchiver,
     pvs,
     lvcreate,
     lvremove,
     vgcfgbackup,
-    pvdisplay
+    pvdisplay,
 )
 
 from lvm2py import LVM
@@ -130,6 +131,23 @@ def backup_one_partition(cfg, partition):
         print(e, file=sys.stderr)
 
 
+def get_app_args(cfg):
+    """
+    """
+
+    parser = argparse.ArgumentParser(
+        description="fsarchiver-backup for LVM metadata & logical-volumes"
+    )
+
+    parser.add_argument('-m', '--metadata-only', action="store_true",
+                        dest='metadata_only', default=False,
+                        help="backup only the system / LVM metadata - "
+                        "defaults to False",)
+
+    args = parser.parse_args()
+    cfg.update(vars(args))
+
+
 def main():
     from config import cfg
     import errno
@@ -137,9 +155,11 @@ def main():
     pprint(cfg, stream=sys.stderr)
     pprint("Backup starting @ {}".format(cfg.today), stream=sys.stderr)
 
+    get_app_args(cfg)
+
     cfg.backup_path = os.path.join(cfg.backup_vol, cfg.backup_dir)
     try:
-        os.mkdir(cfg.backup_path)
+        os.makedirs(cfg.backup_path)
     except OSError as e:
         if e.errno == errno.EEXIST:
             print(e)
@@ -148,6 +168,9 @@ def main():
 
     cfg.lvm = LVM()
     metadata_backup(cfg)
+
+    if cfg.metadata_only:
+        return 0
 
     for part in cfg.lnx_partitions.keys():
         backup_one_partition(cfg, part)
