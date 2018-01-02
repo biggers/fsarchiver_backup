@@ -2,14 +2,24 @@ from __future__ import print_function
 
 import os
 import sys
-import shutil
 from pprint import pprint
+import shutil
+import argparse
 
-from sh import sudo, mount, df
-from lvm2py import LVM
-from sh import sfdisk, fsarchiver
-from sh import pvs, lvcreate, lvremove, vgcfgbackup, pvdisplay
 import sh
+from sh import (
+    df,
+    sfdisk,
+    fsarchiver,
+    pvs,
+    lvcreate,
+    lvremove,
+    vgcfgbackup,
+    pvdisplay,
+)
+
+from lvm2py import LVM
+
 
 def metadata_backup(cfg):
     """ Back-up the LVM and other disk metadata, for this system
@@ -28,15 +38,15 @@ def metadata_backup(cfg):
     sfdisk(l=cfg.metadata, _out=sfd_path_long)
 
     vgcfg = os.path.join(cfg.backup_path, 'lvm_%s.conf')
-    vgcfgbackup( f=vgcfg )
+    vgcfgbackup(f=vgcfg)
 
     shutil.copy('/etc/fstab', cfg.backup_path)   # backup 'fstab'
 
     pvs_out = os.path.join(cfg.backup_path, 'pvs_all.text')
-    pvs( o='pv_all', _out=pvs_out)
+    pvs(o='pv_all', _out=pvs_out)
 
     df_out = os.path.join(cfg.backup_path, 'df_h.text')
-    df( h=True, _out=df_out)
+    df(h=True, _out=df_out)
 
 
 def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
@@ -57,7 +67,7 @@ def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
     except sh.ErrorReturnCode_5 as e:
         # Volume group "sysvg00" has insufficient free space (2661
         # extents): 3505 required.
-        print("\nWARNING, backing up <{}> LIVE!  No LV snapshot possible...".\
+        print("\nWARNING, backing up <{}> LIVE!  No LV snapshot possible...".
               format(lv_path), file=sys.stderr)
         print(e, file=sys.stderr)
         lv_to_backup = lv_path
@@ -67,8 +77,9 @@ def backup_one_lv(cfg, vg, lv, snaplv='snap_lv'):
                _out=sys.stderr)
 
     # clean up....
-    if e == None:
+    if e is None:
         lvremove(f=lv_to_backup, _out=sys.stderr)
+
 
 def get_all_lvs(cfg):
     """ Return a List of VolGroup: LogicalVol pairs, to be backed-up
@@ -119,19 +130,36 @@ def backup_one_partition(cfg, partition):
     except sh.ErrorReturnCode_1 as e:
         print(e, file=sys.stderr)
 
+
+def get_app_args(cfg):
+    """
+    """
+
+    parser = argparse.ArgumentParser(
+        description="fsarchiver-backup for LVM metadata & logical-volumes"
+    )
+
+    parser.add_argument('-m', '--metadata-only', action="store_true",
+                        dest='metadata_only', default=False,
+                        help="backup only the system / LVM metadata - "
+                        "defaults to False",)
+
+    args = parser.parse_args()
+    cfg.update(vars(args))
+
+
 def main():
     from config import cfg
     import errno
 
-    # "pickle" or write as Py code, the _cfg including:
-    #   _cfg.mounts={'/var', '/dev/myvg/var'}'
-
     pprint(cfg, stream=sys.stderr)
     pprint("Backup starting @ {}".format(cfg.today), stream=sys.stderr)
 
+    get_app_args(cfg)
+
     cfg.backup_path = os.path.join(cfg.backup_vol, cfg.backup_dir)
     try:
-        os.mkdir(cfg.backup_path)
+        os.makedirs(cfg.backup_path)
     except OSError as e:
         if e.errno == errno.EEXIST:
             print(e)
@@ -141,6 +169,9 @@ def main():
     cfg.lvm = LVM()
     metadata_backup(cfg)
 
+    if cfg.metadata_only:
+        return 0
+
     for part in cfg.lnx_partitions.keys():
         backup_one_partition(cfg, part)
 
@@ -148,6 +179,7 @@ def main():
 
     for vg, lv in vgs_lvs:
         backup_one_lv(cfg, vg, lv)
+
 
 if __name__ == '__main__':
     main()

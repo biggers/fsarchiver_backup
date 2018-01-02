@@ -26,10 +26,14 @@ pip:
 	. ./venv/bin/activate; \
 	pip install -r requirements.txt
 
+PDB = # "-m pdb"
+OPTS = # --metadata-only
+# make run  PDB="-m pdb"  OPTS=--metadata-only
+
 # must be run as 'sudo', because of root-restriction 
 run:
 	. ./venv/bin/activate; \
-	sudo --preserve-env ./venv/bin/python2 ${PDB} fsa_lv_backup.py
+	sudo --preserve-env ./venv/bin/python2 ${PDB} fsa_lv_backup.py ${OPTS}
 
 clean:
 	/bin/rm -rf ./venv
